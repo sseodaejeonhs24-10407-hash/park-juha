@@ -1,0 +1,800 @@
+500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'scan-line': 'scan 2s linear infinite',
+                    },
+                    keyframes: {
+                        scan: {<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 위조 화폐 정밀 판별 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- TensorFlow.js & Teachable Machine Image Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        alert: {
+                            '0%': { top: '0%' },
+                            '100%': { top: '100%' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700;800&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .alert-glow {
+            box-shadow: 0 0 35px rgba(239, 68, 68, 0.6);
+        }
+        .safe-glow {
+            box-shadow: 0 0 35px rgba(34, 197, 94, 0.3);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Header Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid me-0 fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        화폐 진위 정밀 AI 감지 시스템
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">v2.4 Pro</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Teachable Machine 기반 위조 화폐 자동 탐지 솔루션</p>
+                </div>
+            </div>
+
+            <!-- Model Status Indicator -->
+            <div class="flex items-center gap-3">
+                <div id="modelStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span>AI 모델 로딩 중...</span>
+                </div>
+                <button onclick="toggleSettingsModal()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="설정">
+                    <i class="fa-solid fa-gear text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Camera / Image Inspection Area (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <!-- Video & Canvas Display Frame -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col relative overflow-hidden shadow-2xl transition-all duration-300" id="cameraContainer">
+                
+                <!-- Status Top Bar -->
+                <div class="flex items-center justify-between mb-3 text-xs text-slate-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span class="font-medium text-slate-200" id="inputModeText">실시간 웹캠 정밀 검사</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="fpsCounter" class="font-mono text-slate-500">FPS: --</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700" id="resolutionText">640x480</span>
+                    </div>
+                </div>
+
+                <!-- Video Frame Screen -->
+                <div class="relative w-full aspect-4/3 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner group">
+                    
+                    <!-- WebCam Video Element -->
+                    <video id="webcamVideo" class="w-full h-full object-cover transform -scale-x-100 hidden" autoplay playsinline muted></video>
+                    
+                    <!-- Static Image Upload Preview -->
+                    <img id="imagePreview" class="w-full h-full object-contain hidden" alt="Uploaded Money Preview" />
+
+                    <!-- Canvas Overlay for Scanning Lines & Framing -->
+                    <canvas id="canvasOverlay" class="absolute inset-0 pointer-events-none w-full h-full"></canvas>
+
+                    <!-- Scanning Line HUD Effect -->
+                    <div id="scanLine" class="hidden absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_#22d3ee] animate-scan-line z-10"></div>
+
+                    <!-- Target Reticle Overlay -->
+                    <div class="absolute inset-6 border border-white/10 rounded-lg pointer-events-none flex flex-col justify-between p-2">
+                        <div class="flex justify-between">
+                            <div class="w-4 h-4 border-t-2 border-l-2 border-emerald-400"></div>
+                            <div class="w-4 h-4 border-t-2 border-r-2 border-emerald-400"></div>
+                        </div>
+                        <div class="text-center font-mono text-[10px] text-emerald-400/60 uppercase tracking-widest">
+                            [ 화폐 중앙 배치 후 정밀 측정 ]
+                        </div>
+                        <div class="flex justify-between">
+                            <div class="w-4 h-4 border-b-2 border-l-2 border-emerald-400"></div>
+                            <div class="w-4 h-4 border-b-2 border-r-2 border-emerald-400"></div>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder / No Camera Overlay -->
+                    <div id="cameraPlaceholder" class="flex flex-col items-center justify-center p-6 text-center z-20">
+                        <i class="fa-solid fa-camera-rotate text-4xl text-slate-600 mb-3 animate-pulse"></i>
+                        <p class="text-sm font-semibold text-slate-300">카메라가 비활성화되어 있습니다</p>
+                        <p class="text-xs text-slate-500 mt-1 mb-4">아래 버튼으로 웹캠을 켜거나 이미지 파일을 업로드하세요.</p>
+                        <button onclick="startWebcam()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-lg transition shadow-lg shadow-emerald-900/30 flex items-center gap-2">
+                            <i class="fa-solid fa-video"></i> 웹캠 시작하기
+                        </button>
+                    </div>
+
+                    <!-- Counterfeit Warning Alert Overlay Overlay Frame -->
+                    <div id="fakeWarningBanner" class="hidden absolute top-0 left-0 right-0 bg-red-600/90 text-white font-extrabold text-center py-2 px-4 shadow-xl backdrop-blur-md z-30 animate-bounce flex items-center justify-center gap-2 border-b border-red-400">
+                        <i class="fa-solid fa-triangle-exclamation text-lg animate-ping"></i>
+                        <span>경고: 위조/가짜 화폐가 감지되었습니다!</span>
+                    </div>
+                </div>
+
+                <!-- Camera Controls & Source Selector -->
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <button id="btnWebcamToggle" onclick="toggleWebcam()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition flex items-center gap-2">
+                            <i class="fa-solid fa-power-off text-emerald-400"></i>
+                            <span id="btnWebcamText">웹캠 켜기</span>
+                        </button>
+                        <button onclick="switchCamera()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition" title="카메라 전환">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                        <label class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition cursor-pointer flex items-center gap-2">
+                            <i class="fa-solid fa-upload text-cyan-400"></i>
+                            <span>사진 파일 검사</span>
+                            <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                        </label>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="captureSnapshot()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-2 shadow-lg shadow-indigo-900/30">
+                            <i class="fa-solid fa-camera"></i>
+                            <span>현재 화면 기록</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fast Guidance Card -->
+            <div class="glass-panel rounded-xl p-4 text-xs text-slate-400 flex items-start gap-3 border-l-4 border-l-cyan-500">
+                <i class="fa-solid fa-lightbulb text-cyan-400 text-lg mt-0.5"></i>
+                <div class="space-y-1">
+                    <h4 class="font-semibold text-slate-200 text-sm">정확한 위폐 판별을 위한 팁</h4>
+                    <p>• 장난감 돈, 모조지폐, 프린트물 등 **진짜 돈과 매우 비슷하게 생긴 가짜 돈**도 엄격히 걸러내기 위해 **감도 임계값**을 높여 설정할 수 있습니다.</p>
+                    <p>• 화폐의 주요 모양 및 무늬가 화면에 뚜렷하고 밝게 나오도록 조명을 조절해 주세요.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Real-time Analysis & Alert Panel (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+
+            <!-- Primary Result Banner Box -->
+            <div id="resultCard" class="glass-panel rounded-2xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300 border-2 border-slate-700">
+                
+                <div id="statusIconBg" class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-3 text-2xl transition-all duration-300 text-slate-400 border border-slate-700">
+                    <i id="statusIcon" class="fa-solid fa-magnifying-glass"></i>
+                </div>
+
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1" id="statusSubtitle">
+                    판별 대기 중
+                </div>
+                <h2 id="statusMainTitle" class="text-2xl font-extrabold text-white tracking-tight">
+                    카메라를 켜거나 사진을 올리세요
+                </h2>
+
+                <p id="statusDescription" class="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
+                    AI 모델이 실시간 영상을 분석하여 진짜 화폐와 가짜/위조 화폐를 정밀 구분합니다.
+                </p>
+
+                <!-- Detailed Alert Box (Shown on Fake Money Detection) -->
+                <div id="alertDetailBox" class="hidden mt-4 w-full p-3 rounded-xl bg-red-950/80 border border-red-500/40 text-left text-xs text-red-200">
+                    <div class="flex items-center gap-2 font-bold text-red-400 mb-1">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <span>이상 징후 감지 (Counterfeit Alert)</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
+                        <li>가짜 화폐/장난감 지폐의 확률이 안전 기준치를 초과했습니다.</li>
+                        <li>해당 화폐 수취를 중단하고 재검증을 진행하세요.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- AI Confidence Gauge Dashboard -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-emerald-400"></i>
+                        실시간 AI 확률 분석 (Probability)
+                    </h3>
+                    <span id="dominantClassBadge" class="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                        대기 상태
+                    </span>
+                </div>
+
+                <!-- Real Money Gauge Bar -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs font-medium">
+                        <span class="text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i> 진짜 돈 (Real Money)
+                        </span>
+                        <span id="probRealText" class="font-mono text-slate-300">0.0%</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div id="probRealBar" class="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-200 w-0"></div>
+                    </div>
+                </div>
+
+                <!-- Fake Money Gauge Bar -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs font-medium">
+                        <span class="text-red-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation"></i> 가짜 돈 (Fake Money)
+                        </span>
+                        <span id="probFakeText" class="font-mono text-slate-300">0.0%</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div id="probFakeBar" class="h-full bg-gradient-to-r from-red-600 to-red-500 rounded-full transition-all duration-200 w-0"></div>
+                    </div>
+                </div>
+
+                <!-- Additional Classes (if model has background/other classes) -->
+                <div id="extraClassesContainer" class="hidden flex flex-col gap-2 pt-2 border-t border-slate-800">
+                    <!-- Dynamic extra prediction bars will render here -->
+                </div>
+
+                <!-- Sensitivity Threshold Controls -->
+                <div class="mt-2 pt-3 border-t border-slate-800/80 space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                        <label for="thresholdRange" class="font-medium text-slate-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i>
+                            가짜 돈 경고 감도 기준
+                        </label>
+                        <span id="thresholdVal" class="font-mono text-cyan-400 font-bold">40%</span>
+                    </div>
+                    <input type="range" id="thresholdRange" min="10" max="90" value="40" step="5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400" oninput="updateThreshold(this.value)">
+                    <p class="text-[10px] text-slate-500">
+                        * 가짜 돈 확률이 기준치(<span id="thresholdValDesc">40%</span>)를 넘어가면 즉시 위폐 경고 및 경보음이 발동됩니다.
+                    </p>
+                </div>
+
+                <!-- Sound Alert Toggle Option -->
+                <div class="flex items-center justify-between text-xs pt-1">
+                    <span class="text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high text-indigo-400"></i>
+                        위조 감지 시 경보음 출력
+                    </span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="audioToggle" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Scan Log & History Table -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col flex-1 min-h-[220px]">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-cyan-400"></i>
+                        검사 이력 로그 (Recent Logs)
+                    </h3>
+                    <button onclick="clearLogs()" class="text-[11px] text-slate-500 hover:text-slate-300 transition">
+                        이력 삭제
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto max-h-[180px] border border-slate-800 rounded-xl bg-slate-950/50 p-2 space-y-2" id="historyLogList">
+                    <div class="text-center text-xs text-slate-600 py-6" id="emptyLogMsg">
+                        아직 기록된 검사 결과가 없습니다.
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Settings & Model URL Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl max-w-lg w-full p-6 space-y-5 border border-slate-700 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-emerald-400"></i>
+                    AI 모델 설정 및 조정
+                </h3>
+                <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">
+                        Teachable Machine 모델 URL
+                    </label>
+                    <input type="text" id="modelUrlInput" value="https://teachablemachine.withgoogle.com/models/RMqrvcjoaK/" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition font-mono">
+                    <p class="text-[11px] text-slate-500 mt-1">
+                        * 기본 모델 URL이 적용되어 있습니다. 직접 재학습한 모델 URL로 교체할 수도 있습니다.
+                    </p>
+                </div>
+
+                <div class="border-t border-slate-800 pt-3 space-y-3">
+                    <h4 class="text-xs font-bold text-slate-300">클래스 레이블 이름 매핑 설정</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">진짜 돈 식별 키워드</label>
+                            <input type="text" id="keywordReal" value="진짜,real,genuine,authentic,10000,50000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">가짜 돈 식별 키워드</label>
+                            <input type="text" id="keywordFake" value="가짜,fake,counterfeit,toy,play,copy" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 border-t border-slate-800 pt-4">
+                <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition">
+                    취소
+                </button>
+                <button onclick="applyNewModelUrl()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-900/30">
+                    모델 재로드 및 적용
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Model & Classification State
+        let model = null;
+        let webcam = null;
+        let maxPredictions = 0;
+        let isWebcamRunning = false;
+        let animationFrameId = null;
+        let currentFacingMode = 'user'; // 'user' or 'environment'
+
+        // Threshold & Sound State
+        let fakeThreshold = 0.40; // Default 40% fake probability triggers warning
+        let lastAudioBeepTime = 0;
+        let audioContext = null;
+
+        // Keywords for auto matching labels
+        let realKeywords = ["진짜", "real", "genuine", "authentic", "10000", "50000"];
+        let fakeKeywords = ["가짜", "fake", "counterfeit", "toy", "play", "copy"];
+
+        // History Log Array
+        let scanHistory = [];
+
+        // DOM Element Cache
+        const webcamVideo = document.getElementById('webcamVideo');
+        const imagePreview = document.getElementById('imagePreview');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const scanLine = document.getElementById('scanLine');
+        const fakeWarningBanner = document.getElementById('fakeWarningBanner');
+        const resultCard = document.getElementById('resultCard');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusIconBg = document.getElementById('statusIconBg');
+        const statusMainTitle = document.getElementById('statusMainTitle');
+        const statusSubtitle = document.getElementById('statusSubtitle');
+        const statusDescription = document.getElementById('statusDescription');
+        const alertDetailBox = document.getElementById('alertDetailBox');
+        const probRealText = document.getElementById('probRealText');
+        const probRealBar = document.getElementById('probRealBar');
+        const probFakeText = document.getElementById('probFakeText');
+        const probFakeBar = document.getElementById('probFakeBar');
+        const dominantClassBadge = document.getElementById('dominantClassBadge');
+
+        // Initialize application on load
+        window.addEventListener('load', async () => {
+            const initialUrl = "https://teachablemachine.withgoogle.com/models/RMqrvcjoaK/";
+            await loadModel(initialUrl);
+        });
+
+        // Load Teachable Machine Model
+        async function loadModel(baseUrl) {
+            const badge = document.getElementById('modelStatusBadge');
+            badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20";
+            badge.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>AI 모델 로딩 중...</span>`;
+
+            try {
+                // Formatting URLs
+                const formattedUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+                const modelURL = formattedUrl + "model.json";
+                const metadataURL = formattedUrl + "metadata.json";
+
+                // Load model using TM image library
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                badge.innerHTML = `<i class="fa-solid fa-check-circle"></i> <span>AI 모델 로드 완료 (${maxPredictions}개 클래스)</span>`;
+                console.log("Teachable Machine Model Loaded Successfully!");
+            } catch (error) {
+                console.error("Failed to load TM model:", error);
+                badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20";
+                badge.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <span>모델 로드 실패 (URL 확인)</span>`;
+            }
+        }
+
+        // Start or Toggle Webcam
+        async function startWebcam() {
+            if (isWebcamRunning) return;
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                webcamVideo.srcObject = stream;
+                
+                webcamVideo.onloadedmetadata = () => {
+                    webcamVideo.play();
+                    webcamVideo.classList.remove('hidden');
+                    imagePreview.classList.add('hidden');
+                    cameraPlaceholder.classList.add('hidden');
+                    scanLine.classList.remove('hidden');
+                    isWebcamRunning = true;
+
+                    document.getElementById('btnWebcamText').innerText = "웹캠 끄기";
+                    document.getElementById('inputModeText').innerText = "실시간 웹캠 정밀 검사 중";
+
+                    // Start prediction loop
+                    predictLoop();
+                };
+            } catch (err) {
+                console.error("Camera access error:", err);
+                alert("카메라에 접근할 수 없습니다. 권한 설정을 확인하세요.");
+            }
+        }
+
+        function stopWebcam() {
+            if (!isWebcamRunning) return;
+
+            if (webcamVideo.srcObject) {
+                const tracks = webcamVideo.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                webcamVideo.srcObject = null;
+            }
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            webcamVideo.classList.add('hidden');
+            cameraPlaceholder.classList.remove('hidden');
+            scanLine.classList.add('hidden');
+            isWebcamRunning = false;
+
+            document.getElementById('btnWebcamText').innerText = "웹캠 켜기";
+            document.getElementById('inputModeText').innerText = "카메라 준비 상태";
+            resetStatusCard();
+        }
+
+        function toggleWebcam() {
+            if (isWebcamRunning) {
+                stopWebcam();
+            } else {
+                startWebcam();
+            }
+        }
+
+        async function switchCamera() {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            if (isWebcamRunning) {
+                stopWebcam();
+                await startWebcam();
+            }
+        }
+
+        // Handle image file upload fallback
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            stopWebcam();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.classList.remove('hidden');
+                cameraPlaceholder.classList.add('hidden');
+                document.getElementById('inputModeText').innerText = `업로드 파일 검사: ${file.name}`;
+
+                // Run prediction on uploaded image once loaded
+                imagePreview.onload = async () => {
+                    if (model) {
+                        const predictions = await model.predict(imagePreview);
+                        processPredictions(predictions);
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Frame-by-frame prediction loop
+        async function predictLoop() {
+            if (!isWebcamRunning) return;
+
+            if (model && webcamVideo.readyState === 4) {
+                const predictions = await model.predict(webcamVideo);
+                processPredictions(predictions);
+            }
+
+            animationFrameId = requestAnimationFrame(predictLoop);
+        }
+
+        // Process model raw prediction probabilities
+        function processPredictions(predictions) {
+            if (!predictions || predictions.length === 0) return;
+
+            let realProb = 0;
+            let fakeProb = 0;
+            let highestClass = "";
+            let highestProb = 0;
+
+            // Parse predictions against keyword configuration
+            predictions.forEach(p => {
+                const nameLower = p.className.toLowerCase();
+                const prob = p.probability;
+
+                if (prob > highestProb) {
+                    highestProb = prob;
+                    highestClass = p.className;
+                }
+
+                const isRealMatch = realKeywords.some(kw => nameLower.includes(kw.toLowerCase()));
+                const isFakeMatch = fakeKeywords.some(kw => nameLower.includes(kw.toLowerCase()));
+
+                if (isFakeMatch) {
+                    fakeProb = Math.max(fakeProb, prob);
+                } else if (isRealMatch) {
+                    realProb = Math.max(realProb, prob);
+                } else {
+                    // Fallback heuristics: If class index 0 is real, 1 is fake
+                    if (p.className.includes("0") || nameLower.includes("class 1")) realProb = prob;
+                    else fakeProb = prob;
+                }
+            });
+
+            // Update probability progress bars & values
+            const realPercent = (realProb * 100).toFixed(1);
+            const fakePercent = (fakeProb * 100).toFixed(1);
+
+            probRealText.innerText = `${realPercent}%`;
+            probRealBar.style.width = `${realPercent}%`;
+
+            probFakeText.innerText = `${fakePercent}%`;
+            probFakeBar.style.width = `${fakePercent}%`;
+
+            dominantClassBadge.innerText = `감지: ${highestClass} (${(highestProb * 100).toFixed(0)}%)`;
+
+            // Evaluation logic according to sensitivity threshold
+            evaluateStatus(realProb, fakeProb);
+        }
+
+        // Primary Logic Decision Tree: Real Money vs Fake Money
+        function evaluateStatus(realProb, fakeProb) {
+            // Check if Fake Money exceeds the warning threshold
+            const isCounterfeitDetected = fakeProb >= fakeThreshold;
+
+            if (isCounterfeitDetected) {
+                // ===== FAKE MONEY DETECTED (문제가 발생함 / 위조 화폐 경고) =====
+                fakeWarningBanner.classList.remove('hidden');
+
+                resultCard.className = "glass-panel rounded-2xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300 border-2 border-red-500 alert-glow bg-red-950/20";
+                
+                statusIconBg.className = "w-16 h-16 rounded-2xl bg-red-600/20 text-red-500 flex items-center justify-center mb-3 text-3xl border border-red-500/40 animate-bounce";
+                statusIcon.className = "fa-solid fa-triangle-exclamation";
+
+                statusSubtitle.innerText = "위험 : 이상 화폐 감지";
+                statusSubtitle.className = "text-xs font-bold uppercase tracking-wider text-red-400 mb-1";
+
+                statusMainTitle.innerText = "가짜 / 위조 화폐 의심!";
+                statusMainTitle.className = "text-2xl font-extrabold text-red-400 tracking-tight animate-pulse";
+
+                statusDescription.innerText = `가짜 지폐 확률이 ${ (fakeProb * 100).toFixed(1) }%로 안전 기준치(${ (fakeThreshold * 100) }%)를 초과하였습니다.`;
+                alertDetailBox.classList.remove('hidden');
+
+                // Trigger Alarm Beep
+                playAlarmSound();
+
+            } else if (realProb > 0.5) {
+                // ===== REAL MONEY (정상 화폐 / 문제가 없음) =====
+                fakeWarningBanner.classList.add('hidden');
+
+                resultCard.className = "glass-panel rounded-2xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300 border-2 border-emerald-500 safe-glow bg-emerald-950/20";
+
+                statusIconBg.className = "w-16 h-16 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-3 text-3xl border border-emerald-500/40";
+                statusIcon.className = "fa-solid fa-circle-check";
+
+                statusSubtitle.innerText = "안전 : 검증 완료";
+                statusSubtitle.className = "text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1";
+
+                statusMainTitle.innerText = "정상 화폐 (진짜 돈)";
+                statusMainTitle.className = "text-2xl font-extrabold text-emerald-400 tracking-tight";
+
+                statusDescription.innerText = `진짜 지폐 신뢰도 ${(realProb * 100).toFixed(1)}%로 위조 특이사항이 발견되지 않았습니다.`;
+                alertDetailBox.classList.add('hidden');
+
+            } else {
+                // Ambiguous or Background
+                fakeWarningBanner.classList.add('hidden');
+                resetStatusCard();
+            }
+        }
+
+        function resetStatusCard() {
+            resultCard.className = "glass-panel rounded-2xl p-5 flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300 border-2 border-slate-700";
+            statusIconBg.className = "w-16 h-16 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mb-3 text-2xl border border-slate-700";
+            statusIcon.className = "fa-solid fa-magnifying-glass";
+            statusSubtitle.innerText = "판별 대기 중";
+            statusSubtitle.className = "text-xs font-bold uppercase tracking-wider text-slate-400 mb-1";
+            statusMainTitle.innerText = "화폐를 카메라에 비춰주세요";
+            statusMainTitle.className = "text-xl font-bold text-white";
+            statusDescription.innerText = "AI가 화폐 모양을 분석 중입니다.";
+            alertDetailBox.classList.add('hidden');
+        }
+
+        // Synthesizer Web Audio API Beep Alarm
+        function playAlarmSound() {
+            const isAudioEnabled = document.getElementById('audioToggle').checked;
+            if (!isAudioEnabled) return;
+
+            const now = Date.now();
+            if (now - lastAudioBeepTime < 800) return; // Debounce audio beep every 800ms
+            lastAudioBeepTime = now;
+
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+                osc.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.3);
+
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+
+                osc.start();
+                osc.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.warn("Audio Context playback error:", e);
+            }
+        }
+
+        // Update Sensitivity Threshold Slider
+        function updateThreshold(val) {
+            fakeThreshold = parseFloat(val) / 100;
+            document.getElementById('thresholdVal').innerText = `${val}%`;
+            document.getElementById('thresholdValDesc').innerText = `${val}%`;
+        }
+
+        // Capture Snapshot and save to inspection history table
+        function captureSnapshot() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ko-KR');
+
+            const isFake = !fakeWarningBanner.classList.contains('hidden');
+            const realVal = probRealText.innerText;
+            const fakeVal = probFakeText.innerText;
+
+            const record = {
+                id: Date.now(),
+                time: timeStr,
+                status: isFake ? '가짜 돈 (위조)' : '진짜 돈 (정상)',
+                isFake: isFake,
+                details: isFake ? `가짜: ${fakeVal}` : `진짜: ${realVal}`
+            };
+
+            scanHistory.unshift(record);
+            renderHistoryLog();
+        }
+
+        function renderHistoryLog() {
+            const list = document.getElementById('historyLogList');
+            const emptyMsg = document.getElementById('emptyLogMsg');
+
+            if (scanHistory.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+
+            list.innerHTML = scanHistory.map(item => `
+                <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border ${item.isFake ? 'border-red-500/40 bg-red-950/20' : 'border-emerald-500/30 bg-emerald-950/20'} text-xs">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid ${item.isFake ? 'fa-triangle-exclamation text-red-400' : 'fa-circle-check text-emerald-400'}"></i>
+                        <span class="font-bold ${item.isFake ? 'text-red-300' : 'text-emerald-300'}">${item.status}</span>
+                        <span class="text-[10px] text-slate-500 font-mono">(${item.details})</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-mono">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearLogs() {
+            scanHistory = [];
+            renderHistoryLog();
+        }
+
+        // Settings Modal UI Handlers
+        function toggleSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.toggle('hidden');
+        }
+
+        async function applyNewModelUrl() {
+            const newUrl = document.getElementById('modelUrlInput').value.trim();
+            const rKw = document.getElementById('keywordReal').value.split(',').map(s => s.trim());
+            const fKw = document.getElementById('keywordFake').value.split(',').map(s => s.trim());
+
+            if (rKw.length) realKeywords = rKw;
+            if (fKw.length) fakeKeywords = fKw;
+
+            if (newUrl) {
+                toggleSettingsModal();
+                await loadModel(newUrl);
+            }
+        }
+    </script>
+</body>
+</html>
